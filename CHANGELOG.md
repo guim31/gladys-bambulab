@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-13
+
 ### Added
 
 - One Gladys device per Bambu Lab printer, up to three, over the local MQTT
@@ -36,4 +38,5 @@ the notes of the version's GitHub Release.
   printer needs attention.
 - English, French, German and Spanish texts and documentation.
 
-[Unreleased]: https://github.com/guim31/gladys-bambulab/commits/main
+[Unreleased]: https://github.com/guim31/gladys-bambulab/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-bambulab/releases/tag/v1.0.0
