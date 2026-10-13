@@ -163,7 +163,9 @@ Bambu Studio ou mise en pause sur l'écran déclenche aussi.
   refus, l'intégration attend 5 minutes avant de réessayer.
 - **Certificat inattendu** : un modèle trop récent pour les autorités connues
   de l'intégration ; désactivez **Vérifier le certificat de l'imprimante** et
-  signalez-le sur le forum.
+  signalez-le sur le forum. Sans
+  vérification, Gladys ne suit plus l'imprimante si son adresse change (une
+  annonce réseau pourrait être usurpée) : saisissez son adresse IP.
 - **« Le firmware n'accepte que les commandes des applications Bambu Lab »** :
   activez le mode LAN uniquement puis le mode Développeur sur l'imprimante (voir
   Prérequis).

@@ -164,7 +164,9 @@ Bambu Studio o pausada en la pantalla también los activa.
   volver a intentarlo.
 - **Certificado inesperado**: un modelo más reciente que las autoridades que
   conoce la integración; desactive **Comprobar el certificado de la
-  impresora** e infórmelo en el foro.
+  impresora** e infórmelo en el foro. Sin
+  comprobación, Gladys ya no sigue a la impresora si su dirección cambia (un
+  anuncio de red podría falsificarse): introduzca su dirección IP.
 - **«El firmware de la impresora solo acepta comandos de las aplicaciones de
   Bambu Lab»**: active el modo Solo LAN y después el modo Desarrollador en la
   impresora (consulte Requisitos).

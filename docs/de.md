@@ -163,7 +163,9 @@ Display pausierter Druck löst sie auch aus.
   die Integration 5 Minuten, bevor sie es erneut versucht.
 - **Unerwartetes Zertifikat**: ein Modell, das neuer ist als die
   Zertifizierungsstellen, die die Integration kennt; schalte **Zertifikat des
-  Druckers prüfen** aus und melde es im Forum.
+  Druckers prüfen** aus und melde es im Forum. Ohne
+  Prüfung folgt Gladys dem Drucker nicht mehr, wenn sich seine Adresse ändert
+  (eine Netzwerkankündigung könnte gefälscht sein): Gib seine IP-Adresse ein.
 - **„Die Drucker-Firmware nimmt nur Befehle aus Bambu-Lab-Apps an“**:
   Schalte am Drucker den Nur-LAN-Modus und dann den Entwicklermodus ein (siehe
   Voraussetzungen).

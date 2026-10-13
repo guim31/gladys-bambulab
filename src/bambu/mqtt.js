@@ -137,10 +137,16 @@ export function splitPackets(buffer) {
 
 /** A PUBLISH body -> { topic, payload, packetId? } */
 export function readPublish(flags, body) {
+  const qos = (flags >> 1) & 0x03;
+  if (body.length < 2 || qos === 3) {
+    throw new Error('Malformed MQTT PUBLISH');
+  }
   const topicLength = body.readUInt16BE(0);
+  if (body.length < 2 + topicLength + (qos > 0 ? 2 : 0)) {
+    throw new Error('Malformed MQTT PUBLISH');
+  }
   const topic = body.subarray(2, 2 + topicLength).toString('utf8');
   let offset = 2 + topicLength;
-  const qos = (flags >> 1) & 0x03;
   let packetId = null;
   if (qos > 0) {
     packetId = body.readUInt16BE(offset);
@@ -297,7 +303,14 @@ export class MqttSession extends EventEmitter {
     // Copy the rest: the packets keep slices of the old buffer alive otherwise.
     this.buffer = Buffer.from(result.rest);
     for (const { type, flags, body } of result.packets) {
-      this.#onPacket(type, flags, body);
+      // An exception here would be thrown from a stream event and end the
+      // process: a malformed packet, or a bug in a listener, ends the session.
+      try {
+        this.#onPacket(type, flags, body);
+      } catch (err) {
+        this.emit('failed', new MqttError('protocol', err.message));
+        return;
+      }
       if (this.closed) {
         return;
       }

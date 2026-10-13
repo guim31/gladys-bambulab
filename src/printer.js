@@ -128,12 +128,19 @@ export class PrinterLink extends EventEmitter {
   }
 
   stop() {
+    // A failed print still waiting for its cancellation code is reported now.
+    if (this.failedTimer && this.reportFailed) {
+      clearTimeout(this.failedTimer);
+      this.reportFailed();
+    }
     this.running = false;
+    this.baseline = false;
     for (const timer of this.timers) {
       clearTimeout(timer);
     }
     this.timers.clear();
     clearTimeout(this.failedTimer);
+    this.failedTimer = null;
     clearTimeout(this.firstReportTimer);
     clearInterval(this.watchdog);
     this.watchdog = null;
@@ -181,7 +188,14 @@ export class PrinterLink extends EventEmitter {
       connectTimeout: this.timings.connectTimeout,
     });
     this.session = session;
-    session.on('message', (topic, payload) => this.#onMessage(payload));
+    this.baseline = false;
+    // Only once the session is ours and confirmed: a report arriving with the
+    // SUBACK would otherwise be read before the connection is set up.
+    session.on('message', (topic, payload) => {
+      if (this.connected && this.session === session) {
+        this.#onMessage(payload);
+      }
+    });
     session.on('close', (err) => this.#onClose(session, err));
     try {
       await session.open();
@@ -420,10 +434,9 @@ export class PrinterLink extends EventEmitter {
       const seconds = this.#printSeconds();
       this.#setStart(null);
       clearTimeout(this.failedTimer);
-      this.failedTimer = setTimeout(() => {
-        if (!this.running) {
-          return;
-        }
+      this.reportFailed = () => {
+        this.failedTimer = null;
+        this.reportFailed = null;
         const cancelled = this.cancelSeen;
         const error = cancelled ? null : this.errorSeen;
         this.cancelSeen = false;
@@ -435,7 +448,8 @@ export class PrinterLink extends EventEmitter {
           reason: cancelled ? 'cancelled' : 'error',
           error,
         });
-      }, this.timings.failedGrace);
+      };
+      this.failedTimer = setTimeout(() => this.reportFailed?.(), this.timings.failedGrace);
       this.failedTimer.unref?.();
     }
     const known = new Set(previous.hms.map((entry) => entry.code));

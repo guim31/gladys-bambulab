@@ -7,7 +7,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FakePrinter, announcements, jpeg, settle } from './helpers/fakePrinter.js';
-import { addDevices, configFor, createWorld, deviceId, featureId } from './helpers/world.js';
+import {
+  FAST_HUB,
+  FAST_TIMINGS,
+  addDevices,
+  configFor,
+  createWorld,
+  deviceId,
+  featureId,
+} from './helpers/world.js';
 
 const states = (gladys, serial) =>
   Object.fromEntries(
@@ -345,6 +353,56 @@ test('no address: the network search finds the printer by its serial number', as
   t.after(() => again.app.stop());
   assert.equal(again.hub.printers.get(printer.serial).link.host, '192.0.2.77');
   assert.equal(again.gladys.fake.discoveredDevices[0].name, 'Workshop P1P');
+});
+
+test('certificate check off: an announcement never moves a printer that has an address', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-ams', host: '192.0.2.10' });
+  const impostor = { ...printer, host: '192.0.2.66', serial: printer.serial };
+  const { gladys, app, hub } = await createWorld({
+    printers: [printer],
+    config: configFor([printer], { check_certificate: false }),
+    scanResults: { 'udp-broadcast': announcements(impostor) },
+  });
+  t.after(() => app.stop());
+  printer.online = false;
+  printer.disconnect();
+  await settle(100);
+  await gladys.fake.action('find_printers', {});
+  assert.equal(hub.printers.get(printer.serial).link.host, '192.0.2.10');
+});
+
+test('the search runs again while a printer has no address', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-ams', host: '192.0.2.77' });
+  const { gladys, app, hub } = await createWorld({
+    printers: [printer],
+    config: { serial_1: printer.serial, access_code_1: printer.accessCode },
+    hubTimings: { ...FAST_HUB, searchGap: 50 },
+  });
+  t.after(() => app.stop());
+  assert.equal(hub.printers.get(printer.serial).link.host, '');
+  // The printer turns on later: the next periodic search hears it.
+  gladys.fake.scanResults = { 'udp-broadcast': announcements(printer) };
+  await settle(250);
+  assert.equal(hub.printers.get(printer.serial).link.host, '192.0.2.77');
+  assert.ok(gladys.fake.scans.length >= 2);
+  assert.equal(hub.printers.get(printer.serial).link.reporting, true);
+});
+
+test('a failed print is still reported when the link restarts within the grace period', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-no-ams', overrides: { gcode_state: 'RUNNING' } });
+  const { gladys, app } = await createWorld({
+    printers: [printer],
+    timings: { ...FAST_TIMINGS, failedGrace: 60_000 },
+  });
+  t.after(() => app.stop());
+  printer.report({ gcode_state: 'FAILED', print_error: 50348044 });
+  await settle();
+  assert.equal(gladys.fake.sceneEvents.length, 0, 'waiting for the grace period');
+  printer.host = '192.0.2.99';
+  await gladys.fake.configUpdated(configFor([printer], { language: 'en' }));
+  await settle();
+  const failed = gladys.fake.sceneEvents.find((e) => e.key === 'print_failed');
+  assert.equal(failed?.data.reason, 'cancelled');
 });
 
 test('"Find printers" lists the announcements, configured or not', async (t) => {

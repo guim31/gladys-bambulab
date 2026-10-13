@@ -133,6 +133,13 @@ export class Hub {
     await this.reconfigure(config);
     this.cameraTimer = setInterval(() => this.#cameraRound(), this.hubTimings.cameraInterval);
     this.cameraTimer.unref?.();
+    // A printer still without an address (off at start, not heard): search again.
+    this.searchTimer = setInterval(() => {
+      if ([...this.printers.values()].some((printer) => !printer.link.host)) {
+        this.search({ automatic: true }).catch(() => {});
+      }
+    }, this.hubTimings.searchGap);
+    this.searchTimer.unref?.();
   }
 
   /** New configuration: restart the printers whose address, code or options changed. */
@@ -187,6 +194,7 @@ export class Hub {
     }
     clearTimeout(this.widgetTimer);
     clearInterval(this.cameraTimer);
+    clearInterval(this.searchTimer);
     return this.store.flush();
   }
 
@@ -235,8 +243,9 @@ export class Hub {
     link.on('hms', (entry) => this.#onHms(printer, entry));
     link.on('started', (timestamp) => this.#remember(serial, { printStartedAt: timestamp }));
     link.on('unreachable', (failures) => {
-      if (failures === 3) {
-        // The printer may have a new address (DHCP): look for it.
+      if (failures % 3 === 0) {
+        // The printer may have a new address (DHCP): look for it (searchGap
+        // spaces the searches).
         this.search({ automatic: true }).catch(() => {});
       }
     });
@@ -652,10 +661,15 @@ export class Hub {
         renamed = true;
       }
       // A typed address is kept while it answers; otherwise follow the printer.
-      if (
-        announcement.host !== printer.link.host &&
-        (!printer.configuredHost || !printer.link.connected)
-      ) {
+      // An announcement is not authenticated: following one sends the access
+      // code to the address it names. With the certificate checked, an
+      // impostor fails the TLS handshake before the code leaves; without the
+      // check, an announcement only gives a first address to a printer
+      // without one, and never moves a printer that has one.
+      const allowed = this.config.checkCertificate
+        ? !printer.configuredHost || !printer.link.connected
+        : !printer.link.host;
+      if (announcement.host !== printer.link.host && allowed) {
         if (!printer.configuredHost) {
           this.#remember(printer.serial, { host: announcement.host });
         }

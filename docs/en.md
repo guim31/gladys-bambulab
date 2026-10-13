@@ -159,7 +159,9 @@ paused on the screen fires them too.
   before trying again.
 - **Unexpected certificate**: a model more recent than the authorities the
   integration knows; turn off **Check the printer certificate** and report it
-  on the forum.
+  on the forum. Without the check, Gladys no longer follows the printer when
+  its address changes (a network announcement could be forged): enter its IP
+  address.
 - **"The printer firmware only accepts commands from Bambu Lab apps"**: turn
   on LAN only mode, then Developer mode on the printer (see Requirements).
 - **The network search finds nothing**: it listens to the printers'

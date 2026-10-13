@@ -265,6 +265,16 @@ FAILED` : l'événement `print_failed` attend `failedGrace` (3 s) pour trancher 
   de série, `Location` = IP, `DevModel.bambu.com`, `DevName.bambu.com`, `DevConnect.bambu.com: lan|cloud`)
   en diffusion vers les ports UDP 2021 et 1990. Elle ne répond pas à un M-SEARCH : le type `ssdp` du cœur
   (M-SEARCH sur 1900) ne la trouve pas, d'où `udp-broadcast` sur `[1990, 2021]`.
+- **Une annonce n'est pas authentifiée** : la suivre envoie le code d'accès à l'adresse qu'elle nomme.
+  Certificat vérifié : un imposteur échoue à la poignée TLS avant l'envoi du CONNECT (écrit dans le tampon,
+  jamais émis). Vérification coupée : une annonce ne donne qu'une première adresse à une imprimante qui
+  n'en a pas, et ne déplace jamais une imprimante qui en a une.
+- Mosquitto (MQTT 3.1.1) **accorde** un abonnement que son ACL refuse, puis n'envoie rien : un mauvais
+  numéro de série ressemble alors à une imprimante muette. D'où `firstReport` (15 s sans état après
+  `pushall` → « vérifiez le numéro de série »). Le comportement du broker d'une vraie imprimante n'est pas
+  connu.
+- Un paquet MQTT mal formé ou une exception d'un écouteur dans le flux arrêterait le processus : `#onData`
+  les rattrape et ferme la session.
 
 **Choix de conception**
 

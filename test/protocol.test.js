@@ -114,6 +114,33 @@ test('MQTT session: a refused code, a wrong topic, a silent peer', async () => {
   );
 });
 
+test('MQTT session: a malformed PUBLISH ends the session, not the process', async () => {
+  assert.throws(() => readPublish(0, Buffer.from([0])), /Malformed/);
+  assert.throws(() => readPublish(2, Buffer.from([0, 1, 0x61])), /Malformed/, 'QoS 1 without id');
+  assert.throws(() => readPublish(6, Buffer.from([0, 0, 0, 1])), /Malformed/, 'QoS 3');
+  const [client, server] = duplexPair();
+  server.on('data', (chunk) => {
+    if (chunk[0] === 0x10) {
+      server.write(Buffer.from([0x20, 2, 0, 0]));
+    } else if (chunk[0] === 0x82) {
+      server.write(Buffer.from([0x90, 3, 0, 1, 0]));
+      server.write(Buffer.from([0x32, 1, 0])); // a QoS 1 PUBLISH of one byte
+    }
+  });
+  const session = new MqttSession({
+    connect: () => client,
+    clientId: 't',
+    username: 'bblp',
+    password: 'x',
+    topic: 't',
+  });
+  const closed = new Promise((resolve) => session.on('close', resolve));
+  const hold = setTimeout(() => {}, 5_000);
+  await session.open();
+  assert.equal((await closed).kind, 'protocol');
+  clearTimeout(hold);
+});
+
 test('MQTT session: a peer that stops answering pings is dropped', async () => {
   const [client, server] = duplexPair();
   server.on('data', (chunk) => {

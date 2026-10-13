@@ -87,11 +87,13 @@ const SERIAL_PREFIXES = {
 };
 
 export function modelFromCode(code) {
-  return MODEL_CODES[String(code ?? '').toUpperCase()] ?? null;
+  const key = String(code ?? '').toUpperCase();
+  return Object.hasOwn(MODEL_CODES, key) ? MODEL_CODES[key] : null;
 }
 
 export function modelFromSerial(serial) {
-  return SERIAL_PREFIXES[String(serial ?? '').slice(0, 3)] ?? null;
+  const prefix = String(serial ?? '').slice(0, 3);
+  return Object.hasOwn(SERIAL_PREFIXES, prefix) ? SERIAL_PREFIXES[prefix] : null;
 }
 
 /** The get_version `module` list -> { model, firmware }. */
@@ -99,7 +101,9 @@ export function readVersion(info) {
   const modules = Array.isArray(info?.module) ? info.module : [];
   let model = null;
   for (const module of modules) {
-    model ??= PRODUCT_NAMES[module?.product_name] ?? null;
+    const name = module?.product_name;
+    model ??=
+      typeof name === 'string' && Object.hasOwn(PRODUCT_NAMES, name) ? PRODUCT_NAMES[name] : null;
   }
   if (!model) {
     // Older firmwares (ha-bambulab, get_printer_type).
