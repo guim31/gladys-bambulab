@@ -10,6 +10,13 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+### Changed
+
+- Quieter logs: a printer that stays off, a camera that does not answer, a
+  network search that is not available or Gladys refusing the states is now
+  written once when it starts and once when it is back, instead of at every
+  reconnection attempt, camera round or report.
+
 ## [1.0.0] - 2026-10-13
 
 ### Added

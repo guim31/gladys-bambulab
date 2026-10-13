@@ -251,8 +251,13 @@ export class PrinterLink extends EventEmitter {
     }
     const kind = err?.kind ?? 'network';
     const message = err?.message ?? 'Connection closed';
-    if (wasConnected || this.lastError !== message) {
+    // One warning when the link is lost (or the access code becomes refused),
+    // not one per reconnection attempt: timeouts and network errors alternate.
+    const refused = kind === 'unauthorized';
+    if (wasConnected || !this.errorKind || refused !== (this.errorKind === 'unauthorized')) {
       logger.warn(`Printer ${this.serial}: ${message}`);
+    } else {
+      logger.debug(`Printer ${this.serial}: ${message} (attempt ${this.failures + 1})`);
     }
     this.failures += 1;
     if (kind === 'unauthorized') {

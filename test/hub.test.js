@@ -71,6 +71,37 @@ test('a P1 delta only changes what it carries', async (t) => {
   assert.equal(values.total_layers, 70, 'kept from the full status');
 });
 
+test('states stay fresh without any onPoll (Gladys#3198): push, then silence watchdog', async (t) => {
+  // Core 5.2.0 never polls a device created without should_poll: the printer
+  // pushes its reports, and the container asks again when it falls silent.
+  const printer = new FakePrinter({ fixture: 'p1p-ams' });
+  const { gladys, app, hub } = await createWorld({
+    printers: [printer],
+    timings: { ...FAST_TIMINGS, silence: 40 },
+  });
+  t.after(() => app.stop());
+  const poll = t.mock.method(hub, 'poll');
+  await addDevices(gladys);
+  assert.equal(gladys.fake.discoveredDevices[0].should_poll, false);
+  printer.report({ nozzle_temper: 180, layer_num: 12 });
+  await settle();
+  assert.equal(states(gladys, printer.serial).nozzle_temperature, 180);
+  assert.equal(states(gladys, printer.serial).layer, 12);
+  // Silent printer: the watchdog asks it to push again, on its own timer.
+  const asked = () => printer.requests.filter((r) => r.pushing?.command === 'start').length;
+  await settle(150);
+  assert.ok(asked() >= 1, 'pushing start sent after a silence');
+  assert.equal(poll.mock.callCount(), 0, 'never relies on onPoll');
+  // onPoll stays as a fallback for a Gladys that would poll.
+  const pushalls = printer.requests.filter((r) => r.pushing?.command === 'pushall').length;
+  await gladys.fake.poll(gladys.fake.discoveredDevices[0]);
+  await settle();
+  assert.equal(
+    printer.requests.filter((r) => r.pushing?.command === 'pushall').length,
+    pushalls + 1,
+  );
+});
+
 test('a whole print: started, paused, resumed, finished, with the print time', async (t) => {
   let clock = Date.parse('2026-10-13T08:00:00Z');
   const printer = new FakePrinter({ fixture: 'p1p-no-ams' }); // FINISH
