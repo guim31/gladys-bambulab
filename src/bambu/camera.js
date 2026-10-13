@@ -89,7 +89,6 @@ export function captureFrame({ connect, accessCode, timeout = 10_000 }) {
       () => finish(codedError('camera_timeout', 'No image from the printer camera in time')),
       timeout,
     );
-    timer.unref?.();
     try {
       socket = connect();
     } catch (err) {

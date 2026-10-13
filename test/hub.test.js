@@ -274,6 +274,31 @@ test('a wrong serial number is refused like a wrong code', async (t) => {
   assert.match(gladys.fake.connectionStatus.message.en, /access code or serial number refused/);
 });
 
+test('a broker that grants a wrong serial and sends nothing: said after a while', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-ams' });
+  printer.lenientTopics = true;
+  const { gladys, app } = await createWorld({
+    printers: [printer],
+    config: {
+      serial_1: '01S00A999999999',
+      host_1: printer.host,
+      access_code_1: printer.accessCode,
+    },
+  });
+  t.after(() => app.stop());
+  await settle(150);
+  assert.deepEqual(gladys.fake.connectionStatus, {
+    connected: false,
+    message: {
+      en: 'Printer 1: connected, but no status: check the serial number.',
+      fr: 'Imprimante 1 : connectée, mais aucun état reçu : vérifiez le numéro de série.',
+      de: 'Drucker 1: verbunden, aber kein Status: Prüfe die Seriennummer.',
+      es: 'Impresora 1: conectada, pero sin estado: compruebe el número de serie.',
+    },
+  });
+  assert.deepEqual(gladys.fake.discoveredDevices, []);
+});
+
 test('a printer that goes away: unreachable, then back without an event storm', async (t) => {
   const printer = new FakePrinter({ fixture: 'p1p-ams' });
   const { gladys, app, hub } = await createWorld({ printers: [printer] });

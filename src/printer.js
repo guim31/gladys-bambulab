@@ -41,6 +41,9 @@ export const DEFAULT_TIMINGS = {
   // MQTT keep-alive, seconds.
   keepalive: 30,
   connectTimeout: 15_000,
+  // Connected, but no status this long after `pushall`: a wrong serial number
+  // (a broker may accept the subscription and simply send nothing).
+  firstReport: 15_000,
   cameraTimeout: 10_000,
 };
 
@@ -131,6 +134,7 @@ export class PrinterLink extends EventEmitter {
     }
     this.timers.clear();
     clearTimeout(this.failedTimer);
+    clearTimeout(this.firstReportTimer);
     clearInterval(this.watchdog);
     this.watchdog = null;
     this.#rejectPending('unreachable');
@@ -197,6 +201,18 @@ export class PrinterLink extends EventEmitter {
     logger.info(`Printer ${this.serial}: connected (${this.host})`);
     this.#publish({ info: { sequence_id: this.#nextSequence(), command: 'get_version' } });
     this.#pushall(true);
+    clearTimeout(this.firstReportTimer);
+    this.firstReportTimer = setTimeout(() => {
+      if (this.connected && !this.baseline && this.session === session) {
+        logger.warn(`Printer ${this.serial}: connected, but no status received`);
+        this.#setState(
+          this.snapshot.state,
+          'no_report',
+          'Connected, but the printer sends nothing',
+        );
+      }
+    }, this.timings.firstReport);
+    this.firstReportTimer.unref?.();
     clearInterval(this.watchdog);
     this.watchdog = setInterval(() => this.#checkSilence(), this.timings.silence);
     this.watchdog.unref?.();
@@ -209,6 +225,7 @@ export class PrinterLink extends EventEmitter {
       return;
     }
     this.session = null;
+    clearTimeout(this.firstReportTimer);
     clearInterval(this.watchdog);
     this.watchdog = null;
     this.#rejectPending('unreachable');
@@ -325,6 +342,11 @@ export class PrinterLink extends EventEmitter {
     if (!this.baseline) {
       // The first status after a connection: no event (it may be hours old).
       this.baseline = true;
+      clearTimeout(this.firstReportTimer);
+      if (this.errorKind === 'no_report') {
+        this.errorKind = '';
+        this.lastError = '';
+      }
       if (ACTIVE_STATES.has(next.state) && this.printStartedAt === null) {
         this.#setStart(next.gcodeStartTime ? next.gcodeStartTime * 1000 : null);
       }
@@ -460,7 +482,6 @@ export class PrinterLink extends EventEmitter {
         this.pending.delete(id);
         resolve();
       }, this.timings.commandReply);
-      timer.unref?.();
       this.pending.set(id, { command: body.command, resolve, reject, timer });
       try {
         this.#publish({ [part]: { sequence_id: id, ...body } });

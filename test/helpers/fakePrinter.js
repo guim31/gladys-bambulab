@@ -68,6 +68,7 @@ export class FakePrinter {
     // How the printer answers commands: 'success', 'failed' or 'silent'.
     this.answer = 'success';
     this.answerVersion = true;
+    this.lenientTopics = false;
     this.cameraFrames = [jpeg()];
     this.cameraConnections = 0;
   }
@@ -131,7 +132,12 @@ export class FakePrinter {
         const length = body.readUInt16BE(2);
         const topic = body.subarray(4, 4 + length).toString('utf8');
         const ok = topic === `device/${this.serial}/report`;
-        socket.write(Buffer.concat([Buffer.from([0x90, 3]), id, Buffer.from([ok ? 0 : 0x80])]));
+        // Mosquitto grants a subscription its ACL refuses (MQTT 3.1.1), and
+        // then sends nothing: `lenientTopics` plays that broker.
+        const granted = ok || this.lenientTopics;
+        socket.write(
+          Buffer.concat([Buffer.from([0x90, 3]), id, Buffer.from([granted ? 0 : 0x80])]),
+        );
         if (ok) {
           session.subscribed = true;
           this.clients.add(session);

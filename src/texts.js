@@ -376,6 +376,7 @@ export const STATUS_TEXT = {
     searching: (n) => `Printer ${n}: looking for its address on the network.`,
     unreachable: (n) => `Printer ${n}: no answer.`,
     unauthorized: (n) => `Printer ${n}: access code or serial number refused.`,
+    silent: (n) => `Printer ${n}: connected, but no status: check the serial number.`,
     certificate: (n) => `Printer ${n}: unexpected printer certificate, see the documentation.`,
   },
   fr: {
@@ -387,6 +388,8 @@ export const STATUS_TEXT = {
     searching: (n) => `Imprimante ${n} : recherche de son adresse sur le réseau.`,
     unreachable: (n) => `Imprimante ${n} : aucune réponse.`,
     unauthorized: (n) => `Imprimante ${n} : code d'accès ou numéro de série refusé.`,
+    silent: (n) =>
+      `Imprimante ${n} : connectée, mais aucun état reçu : vérifiez le numéro de série.`,
     certificate: (n) => `Imprimante ${n} : certificat inattendu, voir la documentation.`,
   },
   de: {
@@ -398,6 +401,7 @@ export const STATUS_TEXT = {
     searching: (n) => `Drucker ${n}: Suche seine Adresse im Netzwerk.`,
     unreachable: (n) => `Drucker ${n}: keine Antwort.`,
     unauthorized: (n) => `Drucker ${n}: Zugangscode oder Seriennummer abgelehnt.`,
+    silent: (n) => `Drucker ${n}: verbunden, aber kein Status: Prüfe die Seriennummer.`,
     certificate: (n) => `Drucker ${n}: unerwartetes Zertifikat, siehe Dokumentation.`,
   },
   es: {
@@ -409,6 +413,7 @@ export const STATUS_TEXT = {
     searching: (n) => `Impresora ${n}: buscando su dirección en la red.`,
     unreachable: (n) => `Impresora ${n}: sin respuesta.`,
     unauthorized: (n) => `Impresora ${n}: código de acceso o número de serie rechazado.`,
+    silent: (n) => `Impresora ${n}: conectada, pero sin estado: compruebe el número de serie.`,
     certificate: (n) => `Impresora ${n}: certificado inesperado, consulte la documentación.`,
   },
 };

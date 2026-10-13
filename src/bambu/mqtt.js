@@ -211,7 +211,6 @@ export class MqttSession extends EventEmitter {
         () => fail(new MqttError('timeout', 'The printer did not answer in time')),
         this.connectTimeout,
       );
-      timer.unref?.();
       this.once('subscribed', () => {
         settled = true;
         clearTimeout(timer);

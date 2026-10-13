@@ -133,8 +133,11 @@ test('MQTT session: a peer that stops answering pings is dropped', async () => {
     keepalive: 0.02,
   });
   const closed = new Promise((resolve) => session.on('close', resolve));
+  // The ping timer does not hold the process (a real socket does): hold it here.
+  const hold = setTimeout(() => {}, 5_000);
   await session.open();
   const error = await closed;
+  clearTimeout(hold);
   assert.equal(error.kind, 'timeout');
 });
 

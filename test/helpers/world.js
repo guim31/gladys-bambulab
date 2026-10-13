@@ -23,6 +23,7 @@ export const FAST_TIMINGS = {
   keepalive: 60,
   connectTimeout: 500,
   cameraTimeout: 500,
+  firstReport: 100,
 };
 
 export const FAST_HUB = {

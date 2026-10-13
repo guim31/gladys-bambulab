@@ -153,7 +153,9 @@ the `docker_image` tag) must be bumped and committed before tagging. See
   publishes), the Bambu Lab certificate authorities (`src/bambu/certs/`, from
   Bambu Studio's `printer.cer`), and the reports of `test/fixtures/reports/`
   (its test data, anonymized).
-- The cover uses the Bambu Lab logo.
+- The cover uses the Bambu Lab logo from Wikimedia Commons
+  ([`File:BambuLab logo.svg`](https://commons.wikimedia.org/wiki/File:BambuLab_logo.svg),
+  by Lwde, CC BY-SA 4.0).
 
 ## Disclaimer
 

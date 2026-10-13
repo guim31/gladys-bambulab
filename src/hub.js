@@ -552,6 +552,9 @@ export class Hub {
       }
       const { link } = printer;
       if (link.connected) {
+        if (link.errorKind === 'no_report') {
+          add('silent', slot);
+        }
         continue;
       }
       if (link.errorKind === 'no_host') {
