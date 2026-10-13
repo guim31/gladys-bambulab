@@ -1,67 +1,196 @@
-# Template de démonstration
+# Bambu Lab
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Suivez et pilotez vos imprimantes 3D Bambu Lab (séries X1, P1, A1, H2, P2S)
+depuis Gladys : état, progression, temps restant, couches, températures,
+bobines de l'AMS, erreurs HMS, lumière du caisson, vitesse, pause et reprise,
+image de la caméra (P1 et A1). Tout reste sur votre réseau local : Gladys parle
+directement à l'imprimante (MQTT chiffré sur le port 8883, comme Bambu Studio
+en mode LAN), sans passer par le cloud Bambu Lab.
 
-## Ce que vous obtenez
+**Développée sans le matériel** : l'intégration a été éprouvée contre des
+rapports réels d'imprimantes (publiés par le projet ha-bambulab) rejoués par un
+vrai broker MQTT chiffré, mais pas encore sur une imprimante physique. Vos
+retours sont les bienvenus sur le forum Gladys.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Prérequis
+
+- Gladys Assistant 5.1 ou plus récent.
+- Une imprimante Bambu Lab sur le même réseau local que Gladys.
+- Son **numéro de série** (réglages de l'imprimante, informations de
+  l'appareil, ou Bambu Handy / Bambu Studio) et son **code d'accès LAN**
+  (affiché sur l'écran de l'imprimante, dans les réglages réseau / WLAN).
+- Pour **mettre en pause, reprendre, annuler ou changer la vitesse** depuis
+  Gladys avec un firmware récent (X1 01.08.05, P1 01.08.02, A1 01.05 et
+  suivants, « Authorization Control » de 2025) : activer sur l'imprimante le
+  **mode LAN uniquement** puis le **mode Développeur**. Sans lui, l'imprimante
+  refuse ces commandes ; la lecture de l'état, la lumière et la caméra
+  fonctionnent quand même. Attention : en mode LAN uniquement, Bambu Handy et
+  l'impression à distance par le cloud ne fonctionnent plus. Voir le
+  [wiki Bambu Lab](https://wiki.bambulab.com/en/knowledge-sharing/enable-lan-mode).
 
 ## Configuration
 
 1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+2. Saisissez le **Numéro de série** (par exemple `01P00A000000000`) et le
+   **Code d'accès** de l'imprimante.
+3. **Adresse IP** : facultative. Laissée vide, Gladys écoute les annonces de
+   l'imprimante sur le réseau et la trouve toute seule (et la suit si son
+   adresse change). Saisissez-la si la recherche ne la trouve pas.
+   Enregistrez.
+4. Le bouton **Chercher les imprimantes sur le réseau** liste les imprimantes
+   qui s'annoncent : nom, modèle, adresse, numéro de série, mode LAN.
+5. Une deuxième ou troisième imprimante : remplissez **Imprimante 2** et
+   **Imprimante 3** de la même façon.
+6. **Images de la caméra** (activé par défaut) : une image par minute pendant
+   une impression, et à la demande, pour les séries P1 et A1.
+7. **Vérifier le certificat de l'imprimante** (activé par défaut) : la
+   connexion est chiffrée et le certificat de l'imprimante est vérifié auprès
+   des autorités de Bambu Lab. Ne le désactivez que si la connexion échoue avec
+   une erreur de certificat (un modèle très récent).
+8. **Langue** choisit la langue des noms de fonctionnalités et des textes
+   créés par l'intégration (français par défaut). Les noms des fonctionnalités
+   sont fixés à l'ajout de l'appareil dans Gladys.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Le bouton **Tester la connexion** indique pour chaque imprimante son modèle,
+son firmware, son état, et si le firmware refuse les commandes. Ajoutez
+ensuite l'imprimante depuis l'onglet **Découverte**.
 
-## Actions
+## L'appareil imprimante
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Un appareil par imprimante, nommé d'après le nom donné à l'imprimante (trouvé
+par la recherche réseau) ou d'après son modèle. L'imprimante envoie son état
+chaque seconde ; l'intégration le transmet à Gladys au plus toutes les
+5 secondes, et tout de suite quand l'état d'impression change.
 
-## Scènes
+| Fonctionnalité           | Ce qu'elle affiche                                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| État                     | Prête, Préparation, Impression, En pause, Terminée, Échouée, Hors ligne, Imprimante injoignable, Code d'accès refusé |
+| Fichier                  | Le nom de l'impression en cours, ou de la dernière                                                                   |
+| Progression              | Pourcentage de l'impression                                                                                          |
+| Temps restant            | Estimé par l'imprimante, en minutes                                                                                  |
+| Couche, Couches au total | Numéros de couche (une scène peut tester « couche > 3 »)                                                             |
+| Buse, Plateau            | Températures, en degrés entiers, et leurs consignes en lecture seule                                                 |
+| Caisson                  | Température du caisson (X1, H2, P2S), et sa consigne sur les modèles à caisson chauffé (X1E, H2)                     |
+| Vitesse d'impression     | Liste : Silencieux, Standard, Sport, Extrême (pendant une impression)                                                |
+| Lumière du caisson       | Interrupteur                                                                                                         |
+| Pause, Reprise           | Boutons poussoirs                                                                                                    |
+| Erreurs HMS              | « Aucune erreur », ou le code et le texte de la première erreur HMS (et le nombre des autres)                        |
+| Caméra                   | L'image de la caméra (séries P1 et A1)                                                                               |
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+Il n'y a volontairement pas de bouton **annuler** sur l'appareil : un appui
+sans confirmation ruinerait une impression. L'annulation est proposée par le
+widget (avec confirmation) et par les scènes. Les consignes de température
+sont en lecture seule et l'intégration ne chauffe jamais : rien ne peut lancer
+une chauffe depuis le tableau de bord, HomeKit, Alexa ou Google. Ce sont des
+« températures d'appareil » pour Gladys : elles ne comptent jamais dans la
+température de la pièce. La lumière est un interrupteur, pas une lampe : une
+scène « éteindre toutes les lumières » ne plonge pas une impression (et son
+timelapse) dans le noir.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+## Widget de tableau de bord
 
-## Tableau de bord
+Ajoutez le widget **Impression 3D Bambu** à un tableau de bord et choisissez
+l'imprimante dans ses réglages. Il affiche :
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+- la jauge de progression, le temps restant, les températures de la buse et
+  du plateau (en direct) ;
+- la dernière image de la caméra (P1, A1) ;
+- l'état, le fichier, la couche, l'heure de fin prévue, la vitesse, les
+  erreurs HMS ;
+- les bobines chargées dans l'AMS (`AMS A1`, `AMS A2`… `AMS B1` pour un
+  deuxième AMS) : matière, couleur et reste estimé, celle en cours marquée
+  d'une coche ; la bobine externe sinon ;
+- les boutons utiles au moment : **Pause** ou **Reprendre** et **Annuler**
+  (demande confirmation) pendant une impression, **Allumer** ou **Éteindre**
+  la lumière sinon. Si le firmware refuse les commandes, le widget l'indique
+  (« Mode Développeur requis ») au lieu d'afficher des boutons inutiles.
+
+## Déclencheurs de scène
+
+Dans la catégorie **Intégrations** de l'éditeur de scènes. Chacun peut être
+limité à une imprimante.
+
+- **Impression démarrée** : variables nom de l'imprimante, fichier.
+- **Impression terminée** : variables nom de l'imprimante, fichier, durée
+  d'impression (en texte, comme `1 h 05 min`, et en minutes).
+- **Impression échouée ou annulée** : peut être limité à une raison (annulée,
+  erreur). Variables nom de l'imprimante, fichier, durée, raison, code et
+  message d'erreur.
+- **Impression en pause** : par un utilisateur ou par l'imprimante elle-même
+  (fin de filament, bourrage). Variables nom de l'imprimante, fichier, temps
+  écoulé, code et message d'erreur s'il y en a un.
+- **Erreur HMS** : une nouvelle alerte du système de surveillance de
+  l'imprimante. Peut être limité à une gravité (fatale, grave, courante,
+  information). Variables nom de l'imprimante, code (`0300_0100_0001_0007`),
+  message (dans la langue de l'intégration), gravité.
+
+Les variables se lisent dans les actions suivantes avec, par exemple,
+`{{triggerEvent.data.file}}` et `{{triggerEvent.data.message}}`. Les
+déclencheurs suivent l'imprimante elle-même : une impression lancée depuis
+Bambu Studio ou mise en pause sur l'écran déclenche aussi.
+
+## Actions de scène
+
+- **Mettre en pause, reprendre ou annuler une impression** : renvoie
+  **Appliqué** à faux quand il n'y avait rien à mettre en pause, reprendre ou
+  annuler (la scène continue). Une annulation est définitive.
+- **Allumer ou éteindre la lumière du caisson** : fonctionne aussi sans le
+  mode Développeur.
+- **Changer la vitesse d'impression** : Silencieux, Standard, Sport, Extrême ;
+  pendant une impression seulement (sinon Appliqué : faux).
+
+## Exemples de scènes
+
+- **Impression terminée → notification** : déclencheur Impression terminée,
+  action « Envoyer un message » :
+  `{{triggerEvent.data.file}} terminé en {{triggerEvent.data.duration}}`.
+- **Fumée détectée → tout arrêter** : déclencheur sur le détecteur de fumée,
+  actions Mettre en pause, reprendre ou annuler une impression (annuler), puis
+  éteindre la prise connectée de l'imprimante.
+- **Silence la nuit** : à 22 h, Changer la vitesse d'impression (Silencieux) ;
+  sans effet si rien n'imprime.
+- **Erreur grave → alerte** : déclencheur Erreur HMS limité aux gravités
+  fatale et grave, action « Envoyer un message » :
+  `{{triggerEvent.data.printer}} : {{triggerEvent.data.message}}`.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **Imprimante injoignable** : vérifiez l'adresse IP (écran de l'imprimante,
+  réglages réseau), que l'imprimante est allumée et sur le même réseau que
+  Gladys. Laissez l'adresse vide pour que Gladys la cherche.
+- **Code d'accès ou numéro de série refusé** : le code d'accès peut changer
+  (mode LAN désactivé puis réactivé, réinitialisation) ; ressaisissez-le. Vérifiez aussi le numéro de série (15 caractères). Après un
+  refus, l'intégration attend 5 minutes avant de réessayer.
+- **Certificat inattendu** : un modèle trop récent pour les autorités connues
+  de l'intégration ; désactivez **Vérifier le certificat de l'imprimante** et
+  signalez-le sur le forum. Sans
+  vérification, Gladys ne suit plus l'imprimante si son adresse change (une
+  annonce réseau pourrait être usurpée) : saisissez son adresse IP.
+- **« Le firmware n'accepte que les commandes des applications Bambu Lab »** :
+  activez le mode LAN uniquement puis le mode Développeur sur l'imprimante (voir
+  Prérequis).
+- **La recherche réseau ne trouve rien** : elle écoute les annonces des
+  imprimantes pendant 10 secondes (ports UDP 1990 et 2021, via Gladys) ; un
+  réseau qui ne laisse pas passer la diffusion (VLAN, Wi-Fi invité) les
+  bloque. Saisissez alors l'adresse IP.
+- **Pas d'image de caméra** : seules les séries P1 et A1 ont une caméra
+  accessible ainsi ; Gladys refuse une image de plus de 150 Ko.
+- Logs : dans la page de l'intégration de Gladys, ou `docker logs` sur l'hôte.
+  `LOG_LEVEL=debug` donne le détail. Le code d'accès n'apparaît jamais dans les
+  logs.
+
+## Limites
+
+- Trois imprimantes au plus.
+- Pas d'envoi de fichier ni de lancement d'impression, pas de commandes
+  G-code, pas de réglage de température, pas de timelapse.
+- Caméra : séries P1 et A1 seulement (les séries X1, H2 et P2S filment en
+  RTSPS, que l'intégration ne lit pas), une image par minute pendant une
+  impression et à la demande, pas de flux vidéo.
+- H2D : la température affichée est celle de la buse active.
+- Les textes des erreurs HMS viennent des tables publiées par Bambu Lab
+  (reprises par ha-bambulab) : un code très récent peut s'afficher sans texte.
+- Une impression terminée pendant que l'intégration était déconnectée ne
+  déclenche pas de scène.
+- Développée sans le matériel : vos retours sont les bienvenus.
+- Sans lien avec Bambu Lab.

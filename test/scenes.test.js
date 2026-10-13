@@ -1,93 +1,71 @@
+// -----------------------------------------------------------------------------
+// Scene actions: applied or not, never an error for a refusal of the state;
+// an error for an unknown printer, an unreachable one or a locked firmware.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
-import { MOTION_DETECTED_TRIGGER, motionSensor } from '../src/devices/motionSensor.js';
-import { SCENE_ACTIONS } from '../src/scenes.js';
-import { normalizeConfig } from '../src/config.js';
+import { FakePrinter, settle } from './helpers/fakePrinter.js';
+import { createWorld, deviceId } from './helpers/world.js';
 
-const manifest = JSON.parse(
-  await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
-);
-const config = normalizeConfig();
-
-const declarationOf = (list, key) => manifest[list].find((entry) => entry.key === key);
-const keysOf = (list) => (list ?? []).map((entry) => entry.key);
-const deviceIdOf = (gladys, key) =>
-  DEVICE_BLUEPRINTS.find((bp) => bp.key === key).deviceExternalId(gladys);
-
-// Let the async interval callback run to completion.
-const flush = () => new Promise((resolve) => setImmediate(resolve));
-
-test('the motion sensor fires one motion_detected event per detection, none on the clear', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'one detection, one event');
-    assert.equal(gladys.fake.sceneEvents[0].key, MOTION_DETECTED_TRIGGER);
-    assert.equal(gladys.fake.states.at(-1).state, 1, 'the state is still published');
-
-    t.mock.timers.tick(10_000);
-    await flush();
-    assert.equal(gladys.fake.states.at(-1).state, 0, 'the detection is cleared');
-    assert.equal(gladys.fake.sceneEvents.length, 1, 'the clear fires no event');
-  } finally {
-    stopPush();
-  }
+test('control_print: pause, resume, cancel (sent as stop)', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-ams', overrides: { gcode_state: 'RUNNING' } });
+  const { gladys, app } = await createWorld({ printers: [printer] });
+  t.after(() => app.stop());
+  const run = async (command) =>
+    gladys.fake.sceneAction('control_print', { device: deviceId(printer.serial), command });
+  assert.deepEqual((await run('resume')).data.outputs, { applied: false });
+  assert.deepEqual((await run('pause')).data.outputs, { applied: true });
+  await settle();
+  assert.deepEqual((await run('resume')).data.outputs, { applied: true });
+  await settle();
+  assert.deepEqual((await run('cancel')).data.outputs, { applied: true });
+  assert.equal(printer.requests.at(-1).print.command, 'stop');
+  await settle(100);
+  assert.deepEqual(
+    (await run('cancel')).data.outputs,
+    { applied: false },
+    'nothing left to cancel',
+  );
+  assert.equal((await run('explode')).success, false);
 });
 
-test('motion_detected data only carries keys the trigger declares', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const gladys = createFakeGladys();
-  const stopPush = motionSensor.startPush(gladys, config);
-  try {
-    t.mock.timers.tick(60_000);
-    await flush();
-  } finally {
-    stopPush();
-  }
-  const [{ data }] = gladys.fake.sceneEvents;
-  const trigger = declarationOf('scene_triggers', MOTION_DETECTED_TRIGGER);
-  // The core keeps the `fields` keys (filters) and the `variables` keys
-  // (exposed to the scene): any other key would be silently dropped.
-  const declared = [...keysOf(trigger.fields), ...keysOf(trigger.variables)];
-  for (const [key, value] of Object.entries(data)) {
-    assert.ok(declared.includes(key), `data.${key} is not declared, the core would drop it`);
-    assert.ok(value === null || typeof value !== 'object', `data.${key} must be a primitive`);
-  }
-  // A `"source": "devices"` filter stores a device external_id.
-  assert.equal(data.device, deviceIdOf(gladys, 'motion-sensor'));
-  const targets = trigger.fields.find((field) => field.key === 'target').options;
-  assert.ok(
-    targets.some((option) => option.value === data.target),
-    `data.target "${data.target}" must be one of the filter options`,
+test('set_light and set_speed', async (t) => {
+  const printer = new FakePrinter({ fixture: 'a1-ams-lite' }); // IDLE, light off
+  const { gladys, app } = await createWorld({ printers: [printer] });
+  t.after(() => app.stop());
+  const device = deviceId(printer.serial);
+  const light = await gladys.fake.sceneAction('set_light', { device, state: 'on' });
+  assert.deepEqual(light.data.outputs, { applied: true });
+  assert.equal(printer.requests.at(-1).system.led_node, 'chamber_light');
+  const idle = await gladys.fake.sceneAction('set_speed', { device, speed: 'sport' });
+  assert.deepEqual(idle.data.outputs, { applied: false }, 'no print: nothing to speed up');
+  printer.report({ gcode_state: 'RUNNING' });
+  await settle();
+  const speed = await gladys.fake.sceneAction('set_speed', { device, speed: 'ludicrous' });
+  assert.deepEqual(speed.data.outputs, { applied: true });
+  assert.equal(printer.requests.at(-1).print.param, '4');
+  assert.equal(
+    (await gladys.fake.sceneAction('set_speed', { device, speed: 'warp' })).success,
+    false,
   );
 });
 
-test('identify_device signals the chosen device and returns the declared outputs', async () => {
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'light') },
-    config,
+test('an unknown or unreachable printer fails the action', async (t) => {
+  const printer = new FakePrinter({ fixture: 'p1p-ams' });
+  printer.online = false;
+  const { gladys, app } = await createWorld({ printers: [printer] });
+  t.after(() => app.stop());
+  const unknown = await gladys.fake.sceneAction('set_light', {
+    device: deviceId('01S00A999999999'),
+    state: 'on',
   });
-  assert.deepEqual(outputs, { signalled: true });
-  const declared = keysOf(declarationOf('scene_actions', 'identify_device').outputs);
-  for (const key of Object.keys(outputs)) {
-    assert.ok(declared.includes(key), `output "${key}" is not declared, the core would drop it`);
-  }
-});
-
-test('identify_device reports a device that cannot signal itself through its output', async () => {
-  // Not a failure: a scene action is never a condition, the scene author
-  // gates the following actions on the output instead.
-  const gladys = createFakeGladys();
-  const outputs = await SCENE_ACTIONS.identify_device(gladys, {
-    fields: { device: deviceIdOf(gladys, 'weather-station') },
-    config,
+  assert.equal(unknown.success, false);
+  assert.match(unknown.error, /plus configurée/);
+  const off = await gladys.fake.sceneAction('set_light', {
+    device: deviceId(printer.serial),
+    state: 'on',
   });
-  assert.deepEqual(outputs, { signalled: false });
+  assert.equal(off.success, false);
+  assert.match(off.error, /ne répond pas/);
 });

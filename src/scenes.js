@@ -1,41 +1,63 @@
 // -----------------------------------------------------------------------------
-// Scene actions (SDK v0.14+, Gladys 5.1+).
+// Scene action handlers (manifest `scene_actions`, Gladys 5.1+).
 //
-// A scene action is an OPERATION a scene author places in a scene, with
-// parameters and a result: "identify this device", "take a snapshot", "clean
-// these rooms". Each one is declared in the manifest `scene_actions` field
-// (key, label, `fields` in the config_schema grammar, scalar `outputs`) and
-// handled here, keyed by that same `key`; index.js registers every entry with
-// `gladys.onSceneAction(key, ...)`.
+// A refused command (nothing to pause, no print to change the speed of) is not
+// an error of the scene: the action resolves `applied: false`, so the scene
+// can go on or test it. An unreachable printer, a firmware that refuses
+// commands, or an unknown printer, throws (the action fails, the scene
+// continues and logs it).
 //
-// Scene TRIGGERS are the other direction ("this happened"): they are fired by
-// the device that observes the event, see src/devices/motionSensor.js.
-//
-// The rules that matter:
-//   - `fields` arrive RESOLVED: scene variables substituted, defaults applied,
-//     validated by the core; a `"source": "devices"` field is the chosen
-//     device external_id;
-//   - resolve an object of the declared `outputs` (scalars only), readable by
-//     the following actions of the scene, or `undefined` for none. Keys not
-//     declared in the manifest are dropped by the core;
-//   - throwing fails THIS action only: the scene logs it and continues. A
-//     scene action is never a condition: return an output and let the scene
-//     author gate on it;
-//   - never fire a scene event as a consequence of a received action: a scene
-//     bound to that event would loop through the integration.
+// The triggers (`print_started`, `print_done`...) are fired by the hub from
+// the printer's own reports, never as an echo of these actions.
+// No action heats anything: the targets stay read only (see src/devices.js).
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { signalDevice } from './devices/index.js';
+import { SPEEDS } from './bambu/model.js';
+import { CommandError } from './hub.js';
 
-const logger = createLogger({ name: 'scenes' });
+const logger = createLogger({ name: 'bambulab-scenes' });
+
+// `cancel` is sent to the printer as `stop`.
+export const PRINT_COMMANDS = ['pause', 'resume', 'cancel'];
+export const LIGHT_STATES = ['on', 'off'];
+export const SPEED_NAMES = Object.values(SPEEDS);
+
+const REFUSALS = new Set(['not_printing', 'not_paused', 'no_light']);
+
+async function applied(run, what) {
+  try {
+    await run();
+    return { applied: true };
+  } catch (err) {
+    if (err instanceof CommandError && REFUSALS.has(err.code)) {
+      logger.info(`${what}: not applied (${err.code})`);
+      return { applied: false };
+    }
+    throw err;
+  }
+}
 
 export const SCENE_ACTIONS = {
-  // The ack is awaited under the action's `timeout_seconds` (15 s in the
-  // manifest), counted from the moment the scene reaches the action.
-  async identify_device(gladys, { fields, config }) {
-    logger.info(`Scene action identify_device <- ${fields.device}`);
-    const signalled = await signalDevice(gladys, fields.device, config);
-    return { signalled };
+  control_print(hub, { fields }) {
+    const command = fields.command;
+    if (!PRINT_COMMANDS.includes(command)) {
+      throw new Error(`Unknown print command ${command}`);
+    }
+    const name = command === 'cancel' ? 'stop' : command;
+    return applied(() => hub.command(fields.device, name), `control_print ${command}`);
+  },
+
+  set_light(hub, { fields }) {
+    const state = fields.state;
+    if (!LIGHT_STATES.includes(state)) {
+      throw new Error(`Unknown light state ${state}`);
+    }
+    return applied(() => hub.command(fields.device, 'light', state), `set_light ${state}`);
+  },
+
+  set_speed(hub, { fields }) {
+    const level = hub.speedLevel(fields.speed);
+    return applied(() => hub.command(fields.device, 'speed', level), `set_speed ${fields.speed}`);
   },
 };

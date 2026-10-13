@@ -1,45 +1,110 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// Up to three printers, one "slot" each (`host_1`, `serial_1`,
+// `access_code_1`...). The serial number is the identity of the Gladys
+// device: a new IP address, or moving a printer to another slot, keeps its
+// device and its history.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+export const SLOTS = [1, 2, 3];
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  host_1: '',
+  serial_1: '',
+  access_code_1: '',
+  host_2: '',
+  serial_2: '',
+  access_code_2: '',
+  host_3: '',
+  serial_3: '',
+  access_code_3: '',
+  camera: true,
+  check_certificate: true,
+  language: 'fr',
+};
+
+export const hostKey = (slot) => `host_${slot}`;
+export const serialKey = (slot) => `serial_${slot}`;
+export const accessCodeKey = (slot) => `access_code_${slot}`;
+
+// 15 characters today (01P00A..., 00M09C...), always with digits.
+const SERIAL = /^(?=.*\d)[0-9A-Z]{8,20}$/;
+// The LAN access code shown on the printer screen: 8 characters today.
+const ACCESS_CODE = /^[\x21-\x7e]{4,32}$/;
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+const HOSTNAME =
+  /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+
+const text = (value) => (typeof value === 'string' ? value.trim() : '');
+
+/** `192.0.2.40`, `p1s.local`; a URL or a port is cut down to its host. Null when unusable. */
+export function normalizeHost(raw) {
+  let host = text(raw);
+  if (host === '') {
+    return '';
+  }
+  host = host.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/[/:].*$/, '');
+  return IPV4.test(host) || (HOSTNAME.test(host) && !/^\d+(\.\d+)*$/.test(host)) ? host : null;
+}
+
+export function normalizeSerial(raw) {
+  const serial = text(raw).replace(/\s+/g, '').toUpperCase();
+  return SERIAL.test(serial) ? serial : null;
+}
+
+const toBoolean = (value, fallback) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === 'true' || value === 'false') {
+    return value === 'true';
+  }
+  return fallback;
 };
 
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
+ * @returns {{
+ *   printers: { slot: number, serial: string, host: string, accessCode: string }[],
+ *   problems: { slot: number, reason: 'serial' | 'host' | 'access_code' | 'duplicate' }[],
+ *   camera: boolean, checkCertificate: boolean, language: string
+ * }}
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const printers = [];
+  const problems = [];
+  for (const slot of SLOTS) {
+    const serialText = text(source[serialKey(slot)]);
+    const hostText = text(source[hostKey(slot)]);
+    const accessCode = text(source[accessCodeKey(slot)]);
+    if (serialText === '' && hostText === '' && accessCode === '') {
+      continue;
+    }
+    const serial = normalizeSerial(serialText);
+    const host = normalizeHost(hostText);
+    if (!serial) {
+      problems.push({ slot, reason: 'serial' });
+    } else if (host === null) {
+      problems.push({ slot, reason: 'host' });
+    } else if (!ACCESS_CODE.test(accessCode)) {
+      problems.push({ slot, reason: 'access_code' });
+    } else if (printers.some((printer) => printer.serial === serial)) {
+      problems.push({ slot, reason: 'duplicate' });
+    } else {
+      printers.push({ slot, serial, host, accessCode });
+    }
+  }
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    printers,
+    problems,
+    camera: toBoolean(source.camera, DEFAULT_CONFIG.camera),
+    checkCertificate: toBoolean(source.check_certificate, DEFAULT_CONFIG.check_certificate),
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
 }
