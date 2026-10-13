@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "camera"  # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +31,28 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        printers, devices, states (throttled), connection status, scene events,
+                                  network search, camera images, configuration actions
+src/printer.js                    one printer: MQTT session, merged status, print events, commands, camera
+src/devices.js                    printer -> Gladys device, snapshot -> feature states
+src/bambu/mqtt.js                 minimal MQTT 3.1.1 client (CONNECT, SUBSCRIBE, PUBLISH QoS 0, pings)
+src/bambu/tls.js                  TLS options; certs/bambu-ca.pem: Bambu Lab authorities (Bambu Studio)
+src/bambu/model.js                reading the reports into snapshots; models, capabilities, codes
+src/bambu/camera.js               JPEG stream of the P1 and A1 (TLS port 6000)
+src/bambu/discovery.js            SSDP NOTIFY announcements captured by the core (udp-broadcast)
+src/bambu/hms.js                  HMS / print error texts; hms/*.json.gz from ha-bambulab, 4 languages
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
 src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/texts.js                      every text produced by the container, in four languages
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/store.js                      /data/bambulab-state.json (capabilities, name, address, print start)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakePrinter.js (MQTT broker and camera on in-memory streams)
+test/fixtures/reports/            real printer reports (ha-bambulab test data), anonymized
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +82,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, feature names, widget contents, and
+  `docs/{en,fr,de,es}.md`, kept in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -213,3 +226,60 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Bambu Lab (appris sur cette intégration)
+
+Développée **sans imprimante** : protocole et fixtures tirés de ha-bambulab (`pybambu`, MIT), éprouvés
+contre un vrai broker Mosquitto en TLS (conteneurs `gladys-test-bambulab-*`) qui rejoue les rapports, et un
+faux serveur de caméra. Rien n'a été vérifié sur une vraie imprimante : le dire.
+
+**Protocole**
+
+- MQTT 3.1.1 sur TLS, port 8883, utilisateur `bblp`, mot de passe = code d'accès LAN, abonnement à
+  `device/<série>/report`, requêtes sur `device/<série>/request`. Un mauvais code : CONNACK 5 ; un mauvais
+  numéro de série : SUBACK 0x80 (même message « code ou numéro refusé »). Après un refus, 5 minutes avant de
+  réessayer.
+- Certificat signé par les autorités Bambu Lab (`printer.cer` de Bambu Studio, repris dans
+  `src/bambu/certs/`), émis pour le **numéro de série**, pas pour l'IP : chaîne vérifiée, nom d'hôte non
+  (comme ha-bambulab). TLS 1.2 au plus (le P2S 01.02.00.00 ne répond pas à un ClientHello 1.3). Une option
+  de configuration coupe la vérification.
+- Les séries P1 et A1 n'envoient **que les champs modifiés** : fusionner champ à champ (`applyPrint`), y
+  compris dans l'AMS (unités et emplacements par `id`). `pushall` renvoie tout ; il est lourd pour les P1 :
+  une fois à la connexion, puis au plus toutes les 60 s. Le premier rapport d'une connexion ne déclenche
+  aucun événement.
+- Firmwares récents : températures « empaquetées » dans `device.bed.info.temp`, `device.ctc.info.temp`,
+  `device.extruder.info[].temp` (mot bas = mesure, mot haut = consigne). Le `chamber_temper` des P1 et A1
+  est sans valeur (5) : pas de fonctionnalité caisson pour eux (`MODELS`).
+- `fun` (hex, > 32 bits : `BigInt`) : bit 29 = commandes signées exigées (« Authorization Control », mode
+  Développeur désactivé). Pause, reprise, arrêt et vitesse sont alors refusés par l'imprimante ; la lumière
+  reste permise. L'intégration refuse elle-même (`locked`) au lieu d'envoyer.
+- Annulation : `print_error` 50348044 (`0300_400C`) quelques secondes, avant ou après `gcode_state:
+FAILED` : l'événement `print_failed` attend `failedGrace` (3 s) pour trancher annulée / erreur.
+- L'imprimante répond à une commande en renvoyant la requête avec `result` (`success` / `failed`) et le même
+  `sequence_id` ; tous les firmwares ne le font pas : sans réponse en 4 s, la commande est tenue pour
+  envoyée.
+- Caméra P1/A1 : TLS port 6000, paquet d'authentification de 80 octets (0x40, 0x3000, 0, 0, `bblp` et le
+  code sur 32 octets chacun), puis des trames : en-tête de 16 octets (taille en petit-boutiste) + JPEG. Un
+  mauvais code ferme la connexion sans un octet. X1/H2/P2S : RTSPS port 322, non pris en charge (ffmpeg).
+- Découverte : l'imprimante émet un `NOTIFY` SSDP (`NT: urn:bambulab-com:device:3dprinter:1`, `USN` = numéro
+  de série, `Location` = IP, `DevModel.bambu.com`, `DevName.bambu.com`, `DevConnect.bambu.com: lan|cloud`)
+  en diffusion vers les ports UDP 2021 et 1990. Elle ne répond pas à un M-SEARCH : le type `ssdp` du cœur
+  (M-SEARCH sur 1900) ne la trouve pas, d'où `udp-broadcast` sur `[1990, 2021]`.
+
+**Choix de conception**
+
+- Identité de l'appareil = numéro de série (`gladys.externalIds('printer', serial)`) : changer d'emplacement
+  de configuration ou d'IP garde l'appareil.
+- Températures en `device-temperature-sensor/decimal`, consignes en lecture seule, **aucune action de
+  chauffe** (leçon d'OctoPrint). Lumière en `switch/binary` (pas `light/binary` : « tout éteindre » ne doit
+  pas couper la lumière d'un timelapse). Vitesse en `text/select` (valeurs `silent`… `ludicrous`). Pas de
+  bouton d'annulation sur l'appareil : widget (confirmation) et scènes seulement.
+- États publiés au plus toutes les 5 s par imprimante (immédiatement sur changement d'état, de lumière, de
+  vitesse ou de fichier) : l'imprimante rapporte chaque seconde.
+- Capacités (modèle, caisson, lumière, caméra) gardées dans `/data` et « collantes » : un premier rapport
+  partiel ne doit pas retirer la lumière et faire proposer « Mettre à jour ».
+- Widget : 4 tuiles, l'image de caméra (clé changeante, servie par `onWidgetGetImage`), une liste d'état
+  (10 lignes : état, fichier, couche, fin, vitesse, erreurs, bobines AMS `A1`…`B4`), 2 boutons selon l'état.
+  Couleur des bobines nommée par teinte/saturation/luminosité (`colorFamily`).
+- Textes HMS : tables de ha-bambulab (en, fr, de, es ; environ 1 Mo chacune une fois lue), chargées à la
+  première erreur seulement.

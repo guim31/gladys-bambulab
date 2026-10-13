@@ -1,177 +1,1129 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Bambu Lab",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Follow and control your Bambu Lab 3D printers locally: progress, temperatures, AMS, alerts.",
+    "fr": "Suivez et pilotez vos imprimantes 3D Bambu Lab en local : progression, températures, AMS, alertes.",
+    "de": "Verfolge und steuere deine Bambu-Lab-3D-Drucker lokal: Fortschritt, Temperaturen, AMS, Alarme.",
+    "es": "Siga y controle sus impresoras 3D Bambu Lab en local: progreso, temperaturas, AMS, alertas."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-bambulab:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-bambulab/main/cover.png",
+  "categories": ["appliances"],
+  "transports": ["local"],
+  "network_discovery": [
+    {
+      "type": "udp-broadcast",
+      "ports": [1990, 2021]
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Connect your Bambu Lab printer",
+        "fr": "Connecter votre imprimante Bambu Lab",
+        "de": "Verbinde deinen Bambu-Lab-Drucker",
+        "es": "Conecte su impresora Bambu Lab"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Gladys talks to the printer on your local network, without the Bambu Lab cloud. On the printer screen, open the network settings: note the access code (and the IP address), and turn on LAN only mode with Developer mode if you want to pause, resume or cancel prints from Gladys (recent firmwares refuse these commands otherwise; reading always works). The serial number is in the device settings of the printer or in Bambu Handy. Up to three printers.",
+        "fr": "Gladys dialogue avec l'imprimante sur votre réseau local, sans le cloud Bambu Lab. Sur l'écran de l'imprimante, ouvrez les réglages réseau : notez le code d'accès (et l'adresse IP), et activez le mode LAN uniquement avec le mode Développeur si vous voulez mettre en pause, reprendre ou annuler des impressions depuis Gladys (les firmwares récents refusent sinon ces commandes ; la lecture fonctionne toujours). Le numéro de série est dans les réglages de l'appareil sur l'imprimante ou dans Bambu Handy. Jusqu'à trois imprimantes.",
+        "de": "Gladys spricht mit dem Drucker in deinem lokalen Netzwerk, ohne die Bambu-Lab-Cloud. Öffne auf dem Druckerdisplay die Netzwerkeinstellungen: Notiere den Zugangscode (und die IP-Adresse) und schalte den Nur-LAN-Modus mit dem Entwicklermodus ein, wenn du Drucke aus Gladys pausieren, fortsetzen oder abbrechen willst (aktuelle Firmwares lehnen diese Befehle sonst ab; Lesen klappt immer). Die Seriennummer steht in den Geräteeinstellungen des Druckers oder in Bambu Handy. Bis zu drei Drucker.",
+        "es": "Gladys se comunica con la impresora en su red local, sin la nube de Bambu Lab. En la pantalla de la impresora, abra los ajustes de red: anote el código de acceso (y la dirección IP) y active el modo Solo LAN con el modo Desarrollador si quiere pausar, reanudar o cancelar impresiones desde Gladys (los firmwares recientes rechazan si no estos comandos; la lectura siempre funciona). El número de serie está en los ajustes del dispositivo de la impresora o en Bambu Handy. Hasta tres impresoras."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://wiki.bambulab.com/en/knowledge-sharing/enable-lan-mode",
+          "label": {
+            "en": "Bambu Lab: LAN only and Developer mode",
+            "fr": "Bambu Lab : mode LAN uniquement et Développeur",
+            "de": "Bambu Lab: Nur-LAN- und Entwicklermodus",
+            "es": "Bambu Lab: modos Solo LAN y Desarrollador"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "serial_1",
+      "type": "string",
+      "label": {
+        "en": "Serial number",
+        "fr": "Numéro de série",
+        "de": "Seriennummer",
+        "es": "Número de serie"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "placeholder": {
+        "en": "e.g. 01P00A000000000",
+        "fr": "ex. 01P00A000000000",
+        "de": "z. B. 01P00A000000000",
+        "es": "p. ej. 01P00A000000000"
+      },
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "default": ""
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "access_code_1",
+      "type": "secret",
+      "label": {
+        "en": "Access code",
+        "fr": "Code d'accès",
+        "de": "Zugangscode",
+        "es": "Código de acceso"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "Shown on the printer screen, in the network (WLAN) settings.",
+        "fr": "Affiché sur l'écran de l'imprimante, dans les réglages réseau (WLAN).",
+        "de": "Wird auf dem Druckerdisplay in den Netzwerkeinstellungen (WLAN) angezeigt.",
+        "es": "Se muestra en la pantalla de la impresora, en los ajustes de red (WLAN)."
+      },
+      "required": true
     },
     {
-      "key": "unit",
+      "key": "host_1",
+      "type": "string",
+      "label": {
+        "en": "IP address",
+        "fr": "Adresse IP",
+        "de": "IP-Adresse",
+        "es": "Dirección IP"
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.60",
+        "fr": "ex. 192.168.1.60",
+        "de": "z. B. 192.168.1.60",
+        "es": "p. ej. 192.168.1.60"
+      },
+      "description": {
+        "en": "Optional: left empty, Gladys looks for the printer on the network.",
+        "fr": "Facultative : laissée vide, Gladys cherche l'imprimante sur le réseau.",
+        "de": "Optional: Leer gelassen sucht Gladys den Drucker im Netzwerk.",
+        "es": "Opcional: si la deja vacía, Gladys busca la impresora en la red."
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "section_2",
+      "type": "section",
+      "label": {
+        "en": "Printer 2 (optional)",
+        "fr": "Imprimante 2 (facultatif)",
+        "de": "Drucker 2 (optional)",
+        "es": "Impresora 2 (opcional)"
+      },
+      "description": {
+        "en": "Another Bambu Lab printer, connected the same way.",
+        "fr": "Une autre imprimante Bambu Lab, connectée de la même façon.",
+        "de": "Ein weiterer Bambu-Lab-Drucker, genauso verbunden.",
+        "es": "Otra impresora Bambu Lab, conectada de la misma forma."
+      }
+    },
+    {
+      "key": "serial_2",
+      "type": "string",
+      "label": {
+        "en": "Serial number 2",
+        "fr": "Numéro de série 2",
+        "de": "Seriennummer 2",
+        "es": "Número de serie 2"
+      },
+      "placeholder": {
+        "en": "e.g. 01P00A000000000",
+        "fr": "ex. 01P00A000000000",
+        "de": "z. B. 01P00A000000000",
+        "es": "p. ej. 01P00A000000000"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "access_code_2",
+      "type": "secret",
+      "label": {
+        "en": "Access code 2",
+        "fr": "Code d'accès 2",
+        "de": "Zugangscode 2",
+        "es": "Código de acceso 2"
+      },
+      "description": {
+        "en": "Shown on the printer screen, in the network (WLAN) settings.",
+        "fr": "Affiché sur l'écran de l'imprimante, dans les réglages réseau (WLAN).",
+        "de": "Wird auf dem Druckerdisplay in den Netzwerkeinstellungen (WLAN) angezeigt.",
+        "es": "Se muestra en la pantalla de la impresora, en los ajustes de red (WLAN)."
+      },
+      "required": false
+    },
+    {
+      "key": "host_2",
+      "type": "string",
+      "label": {
+        "en": "IP address 2",
+        "fr": "Adresse IP 2",
+        "de": "IP-Adresse 2",
+        "es": "Dirección IP 2"
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.60",
+        "fr": "ex. 192.168.1.60",
+        "de": "z. B. 192.168.1.60",
+        "es": "p. ej. 192.168.1.60"
+      },
+      "description": {
+        "en": "Optional: left empty, Gladys looks for the printer on the network.",
+        "fr": "Facultative : laissée vide, Gladys cherche l'imprimante sur le réseau.",
+        "de": "Optional: Leer gelassen sucht Gladys den Drucker im Netzwerk.",
+        "es": "Opcional: si la deja vacía, Gladys busca la impresora en la red."
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "section_3",
+      "type": "section",
+      "label": {
+        "en": "Printer 3 (optional)",
+        "fr": "Imprimante 3 (facultatif)",
+        "de": "Drucker 3 (optional)",
+        "es": "Impresora 3 (opcional)"
+      },
+      "description": {
+        "en": "Another Bambu Lab printer, connected the same way.",
+        "fr": "Une autre imprimante Bambu Lab, connectée de la même façon.",
+        "de": "Ein weiterer Bambu-Lab-Drucker, genauso verbunden.",
+        "es": "Otra impresora Bambu Lab, conectada de la misma forma."
+      }
+    },
+    {
+      "key": "serial_3",
+      "type": "string",
+      "label": {
+        "en": "Serial number 3",
+        "fr": "Numéro de série 3",
+        "de": "Seriennummer 3",
+        "es": "Número de serie 3"
+      },
+      "placeholder": {
+        "en": "e.g. 01P00A000000000",
+        "fr": "ex. 01P00A000000000",
+        "de": "z. B. 01P00A000000000",
+        "es": "p. ej. 01P00A000000000"
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "access_code_3",
+      "type": "secret",
+      "label": {
+        "en": "Access code 3",
+        "fr": "Code d'accès 3",
+        "de": "Zugangscode 3",
+        "es": "Código de acceso 3"
+      },
+      "description": {
+        "en": "Shown on the printer screen, in the network (WLAN) settings.",
+        "fr": "Affiché sur l'écran de l'imprimante, dans les réglages réseau (WLAN).",
+        "de": "Wird auf dem Druckerdisplay in den Netzwerkeinstellungen (WLAN) angezeigt.",
+        "es": "Se muestra en la pantalla de la impresora, en los ajustes de red (WLAN)."
+      },
+      "required": false
+    },
+    {
+      "key": "host_3",
+      "type": "string",
+      "label": {
+        "en": "IP address 3",
+        "fr": "Adresse IP 3",
+        "de": "IP-Adresse 3",
+        "es": "Dirección IP 3"
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.60",
+        "fr": "ex. 192.168.1.60",
+        "de": "z. B. 192.168.1.60",
+        "es": "p. ej. 192.168.1.60"
+      },
+      "description": {
+        "en": "Optional: left empty, Gladys looks for the printer on the network.",
+        "fr": "Facultative : laissée vide, Gladys cherche l'imprimante sur le réseau.",
+        "de": "Optional: Leer gelassen sucht Gladys den Drucker im Netzwerk.",
+        "es": "Opcional: si la deja vacía, Gladys busca la impresora en la red."
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "section_options",
+      "type": "section",
+      "label": {
+        "en": "Options",
+        "fr": "Options",
+        "de": "Optionen",
+        "es": "Opciones"
+      },
+      "description": {
+        "en": "Language of the names and texts the integration creates (feature names are set when a device is added).",
+        "fr": "Langue des noms et textes créés par l'intégration (les noms des fonctionnalités sont fixés à l'ajout de l'appareil).",
+        "de": "Sprache der Namen und Texte, die die Integration erzeugt (Funktionsnamen werden beim Hinzufügen des Geräts festgelegt).",
+        "es": "Idioma de los nombres y textos que crea la integración (los nombres de las funciones se fijan al añadir el dispositivo)."
+      }
+    },
+    {
+      "key": "camera",
+      "type": "boolean",
+      "label": {
+        "en": "Camera images (P1 and A1 series)",
+        "fr": "Images de la caméra (séries P1 et A1)",
+        "de": "Kamerabilder (Serien P1 und A1)",
+        "es": "Imágenes de la cámara (series P1 y A1)"
+      },
+      "description": {
+        "en": "One image a minute during a print, and on demand.",
+        "fr": "Une image par minute pendant une impression, et à la demande.",
+        "de": "Ein Bild pro Minute während eines Drucks und auf Anfrage.",
+        "es": "Una imagen por minuto durante una impresión, y a petición."
+      },
+      "required": false,
+      "default": true
+    },
+    {
+      "key": "check_certificate",
+      "type": "boolean",
+      "label": {
+        "en": "Check the printer certificate",
+        "fr": "Vérifier le certificat de l'imprimante",
+        "de": "Zertifikat des Druckers prüfen",
+        "es": "Comprobar el certificado de la impresora"
+      },
+      "description": {
+        "en": "Against the Bambu Lab authorities. Turn it off only if the connection fails with a certificate error.",
+        "fr": "Auprès des autorités Bambu Lab. Ne le désactivez que si la connexion échoue sur une erreur de certificat.",
+        "de": "Gegen die Bambu-Lab-Zertifizierungsstellen. Schalte es nur aus, wenn die Verbindung mit einem Zertifikatsfehler scheitert.",
+        "es": "Frente a las autoridades de Bambu Lab. Desactívelo solo si la conexión falla con un error de certificado."
+      },
+      "required": false,
+      "default": true
+    },
+    {
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+      "label": {
+        "en": "Language",
+        "fr": "Langue",
+        "de": "Sprache",
+        "es": "Idioma"
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
     },
     {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "find_printers",
+      "label": {
+        "en": "Find printers on the network",
+        "fr": "Chercher les imprimantes sur le réseau",
+        "de": "Drucker im Netzwerk suchen",
+        "es": "Buscar impresoras en la red"
+      },
+      "timeout_seconds": 30
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "print_started",
+      "label": {
+        "en": "Print started",
+        "fr": "Impression démarrée",
+        "de": "Druck gestartet",
+        "es": "Impresión iniciada"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A print job started on the printer.",
+        "fr": "Une impression a démarré sur l'imprimante.",
+        "de": "Ein Druckauftrag wurde auf dem Drucker gestartet.",
+        "es": "Se ha iniciado una impresión en la impresora."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "printer",
+          "type": "string",
+          "label": {
+            "en": "Printer name",
+            "fr": "Nom de l'imprimante",
+            "de": "Druckername",
+            "es": "Nombre de la impresora"
+          }
         },
         {
-          "key": "target",
+          "key": "file",
+          "type": "string",
+          "label": {
+            "en": "File",
+            "fr": "Fichier",
+            "de": "Datei",
+            "es": "Archivo"
+          }
+        }
+      ]
+    },
+    {
+      "key": "print_done",
+      "label": {
+        "en": "Print finished",
+        "fr": "Impression terminée",
+        "de": "Druck fertig",
+        "es": "Impresión terminada"
+      },
+      "description": {
+        "en": "A print job finished successfully.",
+        "fr": "Une impression s'est terminée avec succès.",
+        "de": "Ein Druckauftrag wurde erfolgreich beendet.",
+        "es": "Una impresión ha terminado correctamente."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "printer",
+          "type": "string",
+          "label": {
+            "en": "Printer name",
+            "fr": "Nom de l'imprimante",
+            "de": "Druckername",
+            "es": "Nombre de la impresora"
+          }
+        },
+        {
+          "key": "file",
+          "type": "string",
+          "label": {
+            "en": "File",
+            "fr": "Fichier",
+            "de": "Datei",
+            "es": "Archivo"
+          }
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "label": {
+            "en": "Print time",
+            "fr": "Durée d'impression",
+            "de": "Druckdauer",
+            "es": "Tiempo de impresión"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Print time (minutes)",
+            "fr": "Durée d'impression (minutes)",
+            "de": "Druckdauer (Minuten)",
+            "es": "Tiempo de impresión (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "print_failed",
+      "label": {
+        "en": "Print failed or cancelled",
+        "fr": "Impression échouée ou annulée",
+        "de": "Druck fehlgeschlagen oder abgebrochen",
+        "es": "Impresión fallida o cancelada"
+      },
+      "description": {
+        "en": "A print job stopped before its end: cancelled, or an error of the printer.",
+        "fr": "Une impression s'est arrêtée avant la fin : annulée, ou erreur de l'imprimante.",
+        "de": "Ein Druckauftrag endete vorzeitig: abgebrochen oder Druckerfehler.",
+        "es": "Una impresión se ha detenido antes de terminar: cancelada o error de la impresora."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          }
+        },
+        {
+          "key": "reason",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "Reason",
+            "fr": "Raison",
+            "de": "Grund",
+            "es": "Motivo"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "cancelled",
+              "label": {
+                "en": "Cancelled",
+                "fr": "Annulée",
+                "de": "Abgebrochen",
+                "es": "Cancelada"
+              }
+            },
+            {
+              "value": "error",
+              "label": {
+                "en": "Error",
+                "fr": "Erreur",
+                "de": "Fehler",
+                "es": "Error"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "printer",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Printer name",
+            "fr": "Nom de l'imprimante",
+            "de": "Druckername",
+            "es": "Nombre de la impresora"
+          }
+        },
+        {
+          "key": "file",
+          "type": "string",
+          "label": {
+            "en": "File",
+            "fr": "Fichier",
+            "de": "Datei",
+            "es": "Archivo"
+          }
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "label": {
+            "en": "Print time",
+            "fr": "Durée d'impression",
+            "de": "Druckdauer",
+            "es": "Tiempo de impresión"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Print time (minutes)",
+            "fr": "Durée d'impression (minutes)",
+            "de": "Druckdauer (Minuten)",
+            "es": "Tiempo de impresión (minutos)"
+          }
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "label": {
+            "en": "Reason (cancelled or error)",
+            "fr": "Raison (cancelled ou error)",
+            "de": "Grund (cancelled oder error)",
+            "es": "Motivo (cancelled o error)"
+          }
+        },
+        {
+          "key": "error_code",
+          "type": "string",
+          "label": {
+            "en": "Error code",
+            "fr": "Code d'erreur",
+            "de": "Fehlercode",
+            "es": "Código de error"
+          }
+        },
+        {
+          "key": "error_message",
+          "type": "string",
+          "label": {
+            "en": "Error message",
+            "fr": "Message d'erreur",
+            "de": "Fehlermeldung",
+            "es": "Mensaje de error"
+          }
+        }
+      ]
+    },
+    {
+      "key": "print_paused",
+      "label": {
+        "en": "Print paused",
+        "fr": "Impression en pause",
+        "de": "Druck pausiert",
+        "es": "Impresión en pausa"
+      },
+      "description": {
+        "en": "A print job was paused (by a user, or by the printer, e.g. filament runout).",
+        "fr": "Une impression a été mise en pause (par un utilisateur, ou par l'imprimante, ex. fin de filament).",
+        "de": "Ein Druckauftrag wurde pausiert (von jemandem oder vom Drucker, z. B. Filamentende).",
+        "es": "Una impresión se ha pausado (por un usuario o por la impresora, p. ej. fin del filamento)."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "printer",
+          "type": "string",
+          "label": {
+            "en": "Printer name",
+            "fr": "Nom de l'imprimante",
+            "de": "Druckername",
+            "es": "Nombre de la impresora"
+          }
+        },
+        {
+          "key": "file",
+          "type": "string",
+          "label": {
+            "en": "File",
+            "fr": "Fichier",
+            "de": "Datei",
+            "es": "Archivo"
+          }
+        },
+        {
+          "key": "duration",
+          "type": "string",
+          "label": {
+            "en": "Elapsed time",
+            "fr": "Temps écoulé",
+            "de": "Verstrichene Zeit",
+            "es": "Tiempo transcurrido"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Elapsed time (minutes)",
+            "fr": "Temps écoulé (minutes)",
+            "de": "Verstrichene Zeit (Minuten)",
+            "es": "Tiempo transcurrido (minutos)"
+          }
+        },
+        {
+          "key": "error_code",
+          "type": "string",
+          "label": {
+            "en": "Error code",
+            "fr": "Code d'erreur",
+            "de": "Fehlercode",
+            "es": "Código de error"
+          }
+        },
+        {
+          "key": "error_message",
+          "type": "string",
+          "label": {
+            "en": "Error message",
+            "fr": "Message d'erreur",
+            "de": "Fehlermeldung",
+            "es": "Mensaje de error"
+          }
+        }
+      ]
+    },
+    {
+      "key": "hms_error",
+      "label": {
+        "en": "HMS error",
+        "fr": "Erreur HMS",
+        "de": "HMS-Fehler",
+        "es": "Error HMS"
+      },
+      "description": {
+        "en": "The printer raised a new HMS (Health Management System) alert.",
+        "fr": "L'imprimante a levé une nouvelle alerte HMS (Health Management System).",
+        "de": "Der Drucker hat eine neue HMS-Meldung (Health Management System) ausgelöst.",
+        "es": "La impresora ha generado una nueva alerta HMS (Health Management System)."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          }
+        },
+        {
+          "key": "severity",
+          "type": "multi_select",
+          "label": {
+            "en": "Severity",
+            "fr": "Gravité",
+            "de": "Schweregrad",
+            "es": "Gravedad"
+          },
+          "options": [
+            {
+              "value": "fatal",
+              "label": {
+                "en": "Fatal",
+                "fr": "Fatale",
+                "de": "Fatal",
+                "es": "Fatal"
+              }
+            },
+            {
+              "value": "serious",
+              "label": {
+                "en": "Serious",
+                "fr": "Grave",
+                "de": "Schwer",
+                "es": "Grave"
+              }
+            },
+            {
+              "value": "common",
+              "label": {
+                "en": "Common",
+                "fr": "Courante",
+                "de": "Häufig",
+                "es": "Común"
+              }
+            },
+            {
+              "value": "info",
+              "label": {
+                "en": "Information",
+                "fr": "Information",
+                "de": "Information",
+                "es": "Información"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "printer",
+          "type": "string",
+          "label": {
+            "en": "Printer name",
+            "fr": "Nom de l'imprimante",
+            "de": "Druckername",
+            "es": "Nombre de la impresora"
+          }
+        },
+        {
+          "key": "code",
+          "type": "string",
+          "label": {
+            "en": "HMS code",
+            "fr": "Code HMS",
+            "de": "HMS-Code",
+            "es": "Código HMS"
+          }
+        },
+        {
+          "key": "message",
+          "type": "string",
+          "label": {
+            "en": "Message",
+            "fr": "Message",
+            "de": "Meldung",
+            "es": "Mensaje"
+          }
+        },
+        {
+          "key": "severity",
+          "type": "string",
+          "label": {
+            "en": "Severity (fatal, serious, common or info)",
+            "fr": "Gravité (fatal, serious, common ou info)",
+            "de": "Schweregrad (fatal, serious, common oder info)",
+            "es": "Gravedad (fatal, serious, common o info)"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "control_print",
+      "label": {
+        "en": "Pause, resume or cancel a print",
+        "fr": "Mettre en pause, reprendre ou annuler une impression",
+        "de": "Druck pausieren, fortsetzen oder abbrechen",
+        "es": "Pausar, reanudar o cancelar una impresión"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Applied: false when there is nothing to pause, resume or cancel. Cancelling cannot be undone.",
+        "fr": "Appliqué : faux quand il n'y a rien à mettre en pause, reprendre ou annuler. Une annulation est définitive.",
+        "de": "Ausgeführt: falsch, wenn nichts zu pausieren, fortzusetzen oder abzubrechen ist. Ein Abbruch ist endgültig.",
+        "es": "Aplicado: falso cuando no hay nada que pausar, reanudar o cancelar. Una cancelación es definitiva."
+      },
+      "timeout_seconds": 20,
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          },
           "required": true
+        },
+        {
+          "key": "command",
+          "type": "select",
+          "label": {
+            "en": "Command",
+            "fr": "Commande",
+            "de": "Befehl",
+            "es": "Comando"
+          },
+          "required": true,
+          "default": "pause",
+          "options": [
+            {
+              "value": "pause",
+              "label": {
+                "en": "Pause",
+                "fr": "Mettre en pause",
+                "de": "Pausieren",
+                "es": "Pausar"
+              }
+            },
+            {
+              "value": "resume",
+              "label": {
+                "en": "Resume",
+                "fr": "Reprendre",
+                "de": "Fortsetzen",
+                "es": "Reanudar"
+              }
+            },
+            {
+              "value": "cancel",
+              "label": {
+                "en": "Cancel",
+                "fr": "Annuler",
+                "de": "Abbrechen",
+                "es": "Cancelar"
+              }
+            }
+          ]
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "applied",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Applied",
+            "fr": "Appliqué",
+            "de": "Ausgeführt",
+            "es": "Aplicado"
+          }
+        }
+      ]
+    },
+    {
+      "key": "set_light",
+      "label": {
+        "en": "Turn the chamber light on or off",
+        "fr": "Allumer ou éteindre la lumière du caisson",
+        "de": "Bauraumlicht ein- oder ausschalten",
+        "es": "Encender o apagar la luz del recinto"
+      },
+      "description": {
+        "en": "Works without Developer mode too.",
+        "fr": "Fonctionne aussi sans le mode Développeur.",
+        "de": "Funktioniert auch ohne Entwicklermodus.",
+        "es": "Funciona también sin el modo Desarrollador."
+      },
+      "timeout_seconds": 20,
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          },
+          "required": true
+        },
+        {
+          "key": "state",
+          "type": "select",
+          "label": {
+            "en": "Light",
+            "fr": "Lumière",
+            "de": "Licht",
+            "es": "Luz"
+          },
+          "required": true,
+          "default": "on",
+          "options": [
+            {
+              "value": "on",
+              "label": {
+                "en": "On",
+                "fr": "Allumée",
+                "de": "An",
+                "es": "Encendida"
+              }
+            },
+            {
+              "value": "off",
+              "label": {
+                "en": "Off",
+                "fr": "Éteinte",
+                "de": "Aus",
+                "es": "Apagada"
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "key": "applied",
+          "type": "boolean",
+          "label": {
+            "en": "Applied",
+            "fr": "Appliqué",
+            "de": "Ausgeführt",
+            "es": "Aplicado"
+          }
+        }
+      ]
+    },
+    {
+      "key": "set_speed",
+      "label": {
+        "en": "Change the print speed",
+        "fr": "Changer la vitesse d'impression",
+        "de": "Druckgeschwindigkeit ändern",
+        "es": "Cambiar la velocidad de impresión"
+      },
+      "description": {
+        "en": "During a print only (applied: false otherwise).",
+        "fr": "Pendant une impression seulement (appliqué : faux sinon).",
+        "de": "Nur während eines Drucks (sonst ausgeführt: falsch).",
+        "es": "Solo durante una impresión (si no, aplicado: falso)."
+      },
+      "timeout_seconds": 20,
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          },
+          "required": true
+        },
+        {
+          "key": "speed",
+          "type": "select",
+          "label": {
+            "en": "Speed",
+            "fr": "Vitesse",
+            "de": "Geschwindigkeit",
+            "es": "Velocidad"
+          },
+          "required": true,
+          "default": "standard",
+          "options": [
+            {
+              "value": "silent",
+              "label": {
+                "en": "Silent",
+                "fr": "Silencieux",
+                "de": "Leise",
+                "es": "Silencioso"
+              }
+            },
+            {
+              "value": "standard",
+              "label": {
+                "en": "Standard",
+                "fr": "Standard",
+                "de": "Standard",
+                "es": "Estándar"
+              }
+            },
+            {
+              "value": "sport",
+              "label": {
+                "en": "Sport",
+                "fr": "Sport",
+                "de": "Sport",
+                "es": "Deportivo"
+              }
+            },
+            {
+              "value": "ludicrous",
+              "label": {
+                "en": "Ludicrous",
+                "fr": "Extrême",
+                "de": "Extrem",
+                "es": "Extremo"
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "key": "applied",
+          "type": "boolean",
+          "label": {
+            "en": "Applied",
+            "fr": "Appliqué",
+            "de": "Ausgeführt",
+            "es": "Aplicado"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "printer",
+      "label": {
+        "en": "Bambu Lab 3D print",
+        "fr": "Impression 3D Bambu",
+        "de": "Bambu-Lab-3D-Druck",
+        "es": "Impresión 3D Bambu"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Progress, time left, temperatures, camera, AMS spools, and pause or cancel buttons.",
+        "fr": "Progression, temps restant, températures, caméra, bobines AMS, boutons pause ou annulation.",
+        "de": "Fortschritt, Restzeit, Temperaturen, Kamera, AMS-Spulen, Tasten für Pause oder Abbruch.",
+        "es": "Progreso, tiempo restante, temperaturas, cámara, bobinas AMS, botones de pausa o cancelación."
+      },
+      "icon": "printer",
+      "action_timeout_seconds": 20,
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Printer",
+            "fr": "Imprimante",
+            "de": "Drucker",
+            "es": "Impresora"
+          },
+          "required": true
+        }
+      ]
     }
   ]
 }

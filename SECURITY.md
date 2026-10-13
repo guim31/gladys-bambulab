@@ -30,6 +30,20 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration holds:
+
+- the LAN access codes of the printers, in the Gladys configuration (`secret`
+  fields, never sent back to the browser by Gladys) — never in `/data`, never
+  in the logs;
+- `/data/bambulab-state.json`: per serial number, what the printer has
+  (model, firmware, chamber, light, camera), its name and address as the
+  network search found them, and when the print in progress started. No
+  secret;
+- network: TLS connections to the printers (MQTT on port 8883, camera on port 6000) at the addresses the administrator entered or the network search
+  found, on the local network. The printer certificate is checked against
+  the Bambu Lab authorities unless the administrator turns the check off. No
+  other outbound connection: no Bambu Lab cloud.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the printers and their firmware.
