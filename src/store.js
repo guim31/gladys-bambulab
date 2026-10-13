@@ -50,7 +50,15 @@ export class Store {
           await writeFile(temporary, JSON.stringify(snapshot));
           await rename(temporary, this.path);
         } catch (err) {
-          logger.warn(`Cannot write ${this.path}: ${err.message}`);
+          if (!this.failing) {
+            logger.warn(`Cannot write ${this.path}: ${err.message}`);
+          }
+          this.failing = true;
+          return;
+        }
+        if (this.failing) {
+          this.failing = false;
+          logger.info(`${this.path} written again`);
         }
       });
       this.writing = this.pending;

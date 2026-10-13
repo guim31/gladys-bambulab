@@ -114,6 +114,7 @@ export class Hub {
     this.found = new Map();
     this.searching = null;
     this.lastSearchAt = 0;
+    this.searchFailing = false;
     this.lastStatus = '';
     this.widgetRefreshAt = 0;
     this.widgetTimer = null;
@@ -235,6 +236,7 @@ export class Hub {
       versionTimer: null,
       image: null, // { data: Buffer, key: string }
       cameraError: null,
+      publishFailing: false,
     };
     this.printers.set(serial, printer);
     link.on('update', (snapshot, previous) => this.#onUpdate(printer, snapshot, previous));
@@ -420,7 +422,18 @@ export class Hub {
     try {
       await this.gladys.publishChangedStates(states);
     } catch (err) {
-      logger.warn(`Cannot publish the states of printer ${printer.serial}: ${err.message}`);
+      // Once per outage, not once per report (several per second while printing).
+      if (!printer.publishFailing) {
+        logger.warn(`Cannot publish the states of printer ${printer.serial}: ${err.message}`);
+      } else {
+        logger.debug(`Cannot publish the states of printer ${printer.serial}: ${err.message}`);
+      }
+      printer.publishFailing = true;
+      return;
+    }
+    if (printer.publishFailing) {
+      printer.publishFailing = false;
+      logger.info(`Printer ${printer.serial}: states published again`);
     }
   }
 
@@ -641,8 +654,18 @@ export class Hub {
         timeoutSeconds: this.hubTimings.searchSeconds,
       });
     } catch (err) {
-      logger.warn(`Network search unavailable: ${err.message}`);
+      // The automatic search repeats while a printer has no address: say it once.
+      if (!this.searchFailing) {
+        logger.warn(`Network search unavailable: ${err.message}`);
+      } else {
+        logger.debug(`Network search unavailable: ${err.message}`);
+      }
+      this.searchFailing = true;
       return null;
+    }
+    if (this.searchFailing) {
+      this.searchFailing = false;
+      logger.info('Network search available again');
     }
     if (this.stopped) {
       return null;
@@ -811,11 +834,17 @@ export class Hub {
         encoded,
       );
     } catch (err) {
-      if (printer.cameraError !== err.message) {
+      // One line per outage (a round every minute while printing).
+      if (!printer.cameraError) {
         logger.warn(`Printer ${printer.serial}: no camera image (${err.message})`);
+      } else {
+        logger.debug(`Printer ${printer.serial}: no camera image (${err.message})`);
       }
       printer.cameraError = err.message;
       return;
+    }
+    if (printer.cameraError) {
+      logger.info(`Printer ${printer.serial}: camera images again`);
     }
     printer.cameraError = null;
   }

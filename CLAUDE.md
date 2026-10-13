@@ -52,6 +52,7 @@ gladys-assistant-integration.json manifest: name, config_schema, actions, image.
 docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
                                   and helpers/fakePrinter.js (MQTT broker and camera on in-memory streams)
+test/logs.test.js                 what reaches docker logs: lifecycle only at info, repeated errors once
 test/fixtures/reports/            real printer reports (ha-bambulab test data), anonymized
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
@@ -122,6 +123,17 @@ code de ce dépôt. Compléter ce fichier quand un nouveau piège est découvert
   15000, 30000, 60000). Le template publie `poll_frequency: 300` sans `should_poll` : c'est faux,
   le cœur répond 400 à la découverte. Pour une cadence hors liste, publier `should_poll: false` et
   pousser les états depuis le conteneur, en gardant un `onPoll` de repli.
+- **Issue GladysAssistant/Gladys#3198** (correctif #3199 pas encore publié) : le cœur 5.2.0 ne sonde
+  rien sans `should_poll: true` et `poll_frequency` valide, et les appareils **déjà créés** sans
+  `should_poll` ne seront jamais sondés, même après le correctif. Ne jamais compter sur le seul
+  `onPoll` : l'intégration se rafraîchit elle-même (ici, l'imprimante pousse ses rapports et un
+  minuteur interne relance `pushing start` après un silence), `onPoll` reste un repli. Test :
+  « states stay fresh without any onPoll » dans `test/hub.test.js`.
+- **Logs** : en `info`, le cycle de vie seulement (démarrage, connexion, perte et retour d'une
+  imprimante, événements d'impression). Rien par rapport, par état publié ni par tour de caméra ;
+  une erreur répétée (reconnexion, caméra, publication des états, recherche réseau, écriture de
+  `/data`) s'écrit une fois au premier échec (`warn`) et une fois au retour (`info`), le reste en
+  `debug` (`LOG_LEVEL=debug`). `test/logs.test.js` le vérifie en capturant `console`.
 - **`min` et `max` sont NOT NULL** dans `t_device_feature`, y compris pour `text/text` : sans eux,
   « Ajouter à Gladys » échoue en HTTP 422. Mettre 0/0, comme Zigbee2MQTT.
 - Un état publié sur une fonctionnalité **pas encore ajoutée** dans Gladys reçoit un 200 puis est
