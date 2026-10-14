@@ -829,10 +829,7 @@ export class Hub {
       if (encoded.length > MAX_IMAGE_BYTES) {
         throw new Error(`image of ${Math.round(data.length / 1024)} KB, Gladys takes 150 KB`);
       }
-      await this.gladys.publishCameraImage(
-        deviceIds(this.gladys, printer.serial).feature('camera'),
-        encoded,
-      );
+      await this.gladys.publishCameraImage(deviceIds(this.gladys, printer.serial).device, encoded);
     } catch (err) {
       // One line per outage (a round every minute while printing).
       if (!printer.cameraError) {
