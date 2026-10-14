@@ -477,9 +477,8 @@ test('camera: a fresh JPEG on demand, pushed on device creation, served to the w
   t.after(() => app.stop());
   await addDevices(gladys);
   await settle(50);
-  const cameraId = featureId(printer.serial, 'camera');
   assert.equal(gladys.fake.cameraImages.length, 1);
-  assert.equal(gladys.fake.cameraImages[0].device_feature_external_id ?? cameraId, cameraId);
+  assert.equal(gladys.fake.cameraImages[0].device_external_id, deviceId(printer.serial));
 
   const device = gladys.fake.discoveredDevices[0];
   const ack = await gladys.fake.getImage(device);
